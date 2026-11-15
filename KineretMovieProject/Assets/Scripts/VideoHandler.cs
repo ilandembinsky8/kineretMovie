@@ -14,7 +14,7 @@ using UnityEngine.Video;
 /// Input (presentation clicker sends PageDown / PageUp):
 ///   Next video:      left mouse, Right Arrow, PageDown
 ///   Previous video:  right mouse, Left Arrow, PageUp
-///   Next scene:      Period
+///   Next scene:      Period (only if Movie.json has scenes)
 ///   Restart show:    Space, or F5 while Period is held (re-reads the ini and JSON)
 /// </summary>
 public class VideoHandler : MonoBehaviour
@@ -123,7 +123,8 @@ public class VideoHandler : MonoBehaviour
         bool previous =
             (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
             (keyboard != null && (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.pageUpKey.wasPressedThisFrame));
-        bool nextScene = keyboard != null && keyboard.periodKey.wasPressedThisFrame;
+        // Only when Movie.json groups clips into scenes; with a flat "movies" list Period does nothing.
+        bool nextScene = _videoData.HasScenes && keyboard != null && keyboard.periodKey.wasPressedThisFrame;
 
         if (next) PlayIndex(Wrap(_currentIndex + 1));
         else if (previous) PlayIndex(Wrap(_currentIndex - 1));

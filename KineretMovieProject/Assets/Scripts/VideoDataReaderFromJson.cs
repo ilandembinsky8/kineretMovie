@@ -4,7 +4,9 @@ using System.IO;
 using UnityEngine;
 
 /// <summary>
-/// Reads Movie.json (the play order of one video folder).
+/// Reads Movie.json (the play order of one video folder). Two layouts are supported:
+///   { "movies": [ ... ] }                                   - flat list, no scenes
+///   { "scenes": [ { "sceneName": "...", "movies": [ ... ] } ] } - clips grouped into scenes
 /// Plain C# class, not a component: VideoHandler owns one instance.
 /// </summary>
 public class VideoDataReaderFromJson
@@ -12,7 +14,8 @@ public class VideoDataReaderFromJson
     [Serializable]
     public class Scenes
     {
-        public Scene[] scenes;
+        public Scene[] scenes; // used when the JSON groups clips into scenes
+        public Movie[] movies; // used when the JSON is a flat list (no scenes)
     }
 
     [Serializable]
@@ -32,9 +35,13 @@ public class VideoDataReaderFromJson
 
     public Scene[] LoadedScenes { get; private set; } = Array.Empty<Scene>();
 
+    /// <summary>False when the JSON is a flat "movies" list; LoadedScenes then holds one scene with all clips.</summary>
+    public bool HasScenes { get; private set; }
+
     public bool Load(string jsonPath)
     {
         LoadedScenes = Array.Empty<Scene>();
+        HasScenes = false;
 
         if (!File.Exists(jsonPath))
         {
@@ -53,14 +60,27 @@ public class VideoDataReaderFromJson
             return false;
         }
 
-        if (data?.scenes == null || data.scenes.Length == 0)
+        bool hasScenes = data?.scenes != null && data.scenes.Length > 0;
+        bool hasMovies = data?.movies != null && data.movies.Length > 0;
+
+        if (hasScenes && hasMovies)
+            Debug.LogWarning($"Show JSON has both \"scenes\" and \"movies\"; using \"scenes\": {jsonPath}");
+
+        if (hasScenes)
         {
-            Debug.LogError($"Show JSON has no scenes: {jsonPath}");
-            return false;
+            LoadedScenes = data.scenes;
+            HasScenes = true;
+            return true;
         }
 
-        LoadedScenes = data.scenes;
-        return true;
+        if (hasMovies)
+        {
+            LoadedScenes = new[] { new Scene { sceneName = null, movies = data.movies } };
+            return true;
+        }
+
+        Debug.LogError($"Show JSON has no \"movies\" or \"scenes\": {jsonPath}");
+        return false;
     }
 
     /// <summary>Converts "hh:mm:ss:ms" to seconds. Returns 0 (and warns) on bad input.</summary>
